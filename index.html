@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1E3A5F">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sipariş Takip">
+<link rel="manifest" href="manifest.json">
+<title>Sipariş Takip</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --navy:#1E3A5F;--navy2:#2C5282;
+  --green:#2E7D32;--green-bg:#E8F5E9;--green-t:#1B5E20;
+  --red:#C62828;--red-bg:#FFEBEE;--red-t:#B71C1C;
+  --orange:#E65100;--orange-bg:#FFF3E0;--orange-t:#BF360C;
+  --gray:#607080;--bg:#F0F4F8;--white:#fff;
+  --shadow:0 2px 12px rgba(30,58,95,.10);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:#1A2332;min-height:100vh;overscroll-behavior:none}
+
+/* TOPBAR */
+.topbar{background:var(--navy);height:58px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 10px rgba(0,0,0,.2)}
+.tl{display:flex;align-items:center;gap:10px}
+.ti{font-size:24px}
+.tt{font-size:17px;font-weight:800;color:#fff}
+.ts2{font-size:11px;color:rgba(255,255,255,.6)}
+.tbadge{background:#F6AD55;color:var(--navy);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:800;display:none}
+.tsync{font-size:11px;color:rgba(255,255,255,.55);cursor:pointer;padding:6px}
+
+/* STATES */
+#loading-screen,#error-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 58px);padding:24px;text-align:center}
+.spin{width:44px;height:44px;border:3px solid rgba(30,58,95,.15);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:20px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:15px;color:var(--gray)}
+.error-icon{font-size:52px;margin-bottom:16px}
+.error-title{font-size:18px;font-weight:700;color:var(--navy);margin-bottom:8px}
+.error-desc{font-size:13px;color:var(--gray);line-height:1.6;margin-bottom:24px;max-width:300px}
+.error-btn{background:var(--navy);color:#fff;border:none;border-radius:12px;padding:14px 28px;font-size:15px;font-weight:700;cursor:pointer}
+
+/* SETUP SCREEN */
+#setup-screen{display:none;padding:20px;max-width:480px;margin:0 auto}
+.setup-card{background:#fff;border-radius:20px;padding:28px 24px;box-shadow:var(--shadow);margin-bottom:16px}
+.setup-card h2{font-size:17px;font-weight:700;color:var(--navy);margin-bottom:6px}
+.setup-card p{font-size:13px;color:var(--gray);line-height:1.6;margin-bottom:16px}
+.setup-input{width:100%;border:2px solid #CBD5E0;border-radius:12px;padding:12px 14px;font-size:14px;color:#1A2332;outline:none;transition:border-color .15s}
+.setup-input:focus{border-color:var(--navy)}
+.setup-btn{background:var(--navy);color:#fff;border:none;border-radius:12px;padding:15px;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-top:12px}
+.setup-hint{font-size:12px;color:var(--gray);background:#EDF2F7;border-radius:8px;padding:10px 14px;line-height:1.5}
+
+/* APP */
+#app-screen{display:none;padding-bottom:24px}
+
+/* STATS */
+.stats{background:var(--navy);padding:14px 16px 16px;display:flex;gap:10px}
+.stat{flex:1;background:rgba(255,255,255,.11);border-radius:12px;padding:10px 8px;text-align:center}
+.stat .n{font-size:26px;font-weight:800;color:#fff;line-height:1}
+.stat .l{font-size:10px;color:rgba(255,255,255,.6);margin-top:3px}
+.stat.g .n{color:#81C784}
+.stat.r .n{color:#EF9A9A}
+
+/* TABS */
+.tabs{display:flex;gap:8px;padding:14px 16px 10px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{background:#fff;border:2px solid transparent;border-radius:20px;padding:8px 18px;font-size:13px;font-weight:700;color:var(--gray);cursor:pointer;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.07);transition:all .15s;flex-shrink:0}
+.tab.all.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.tab.pend.active{background:var(--orange);color:#fff;border-color:var(--orange)}
+.tab.ok.active{background:var(--green);color:#fff;border-color:var(--green)}
+.tab.fail.active{background:var(--red);color:#fff;border-color:var(--red)}
+
+/* LAST SYNC */
+.sync-bar{padding:6px 16px;font-size:11px;color:var(--gray);display:flex;align-items:center;gap:6px}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#81C784;flex-shrink:0}
+.sync-dot.old{background:#F6AD55}
+
+/* LIST */
+.list{padding:4px 14px;display:flex;flex-direction:column;gap:10px}
+.card{background:#fff;border-radius:16px;box-shadow:var(--shadow);overflow:hidden;border-left:5px solid #CBD5E0;transition:transform .12s}
+.card:active{transform:scale(.99)}
+.card.pend{border-left-color:#F6AD55}
+.card.ok{border-left-color:var(--green);background:#FAFFFE}
+.card.fail{border-left-color:var(--red);background:#FFFAFA}
+.cbody{padding:14px 16px}
+.ctop{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
+.cfirm{font-size:17px;font-weight:800;color:#1A2332}
+.ccode{font-size:12px;font-weight:700;color:var(--gray);background:#EDF2F7;border-radius:6px;padding:3px 9px;white-space:nowrap;margin-left:8px}
+.spill{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;margin-bottom:12px}
+.spill.pend{background:var(--orange-bg);color:var(--orange-t)}
+.spill.ok{background:var(--green-bg);color:var(--green-t)}
+.spill.fail{background:var(--red-bg);color:var(--red-t)}
+.actions{display:flex;gap:8px}
+.btn-ok{flex:1;background:var(--green);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 3px 10px rgba(46,125,50,.28);transition:transform .14s}
+.btn-ok:active{transform:scale(.96)}
+.btn-fail{flex:1;background:var(--red-bg);color:var(--red);border:2px solid var(--red);border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:transform .14s}
+.btn-fail:active{transform:scale(.96)}
+.btn-ok:disabled,.btn-fail:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.done-lbl{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;padding:4px 0}
+.done-lbl.ok{color:var(--green)}
+.done-lbl.fail{color:var(--red)}
+.empty{text-align:center;padding:56px 24px;color:var(--gray)}
+.empty .e{font-size:48px;margin-bottom:12px}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.48);z-index:200;align-items:flex-end;justify-content:center}
+.overlay.show{display:flex}
+.modal{background:#fff;border-radius:22px 22px 0 0;padding:26px 20px 40px;width:100%;max-width:480px}
+.micon{font-size:40px;margin-bottom:10px;display:block}
+.modal h3{font-size:19px;font-weight:800;color:var(--navy);margin-bottom:6px}
+.modal p{font-size:14px;color:var(--gray);margin-bottom:22px;line-height:1.55}
+.mbtns{display:flex;gap:8px}
+.m-cancel{background:#EDF2F7;color:var(--gray);border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;flex:1}
+.m-ok{background:var(--green);color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;flex:2;box-shadow:0 3px 10px rgba(46,125,50,.25)}
+.m-fail{background:var(--red);color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;flex:2;box-shadow:0 3px 10px rgba(198,40,40,.25)}
+.m-ok:disabled,.m-fail:disabled{opacity:.6;cursor:not-allowed}
+
+/* TOAST */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1A202C;color:#fff;border-radius:12px;padding:12px 22px;font-size:14px;font-weight:600;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.22)}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="tl">
+    <span class="ti">🚚</span>
+    <div><div class="tt">Sipariş Takip</div><div class="ts2">Şöför Paneli</div></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="tbadge" id="top-badge">0 Bekliyor</div>
+    <span class="tsync" onclick="loadData()" title="Yenile">🔄</span>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="spin"></div>
+  <div class="loading-text">Siparişler yükleniyor...</div>
+</div>
+
+<!-- SETUP (API URL girilmemiş) -->
+<div id="setup-screen">
+  <div style="height:20px"></div>
+  <div class="setup-card">
+    <h2>Kurulum Gerekiyor</h2>
+    <p>Yöneticinizin size verdiği <strong>Apps Script linkini</strong> buraya yapıştırın. Bu işlemi bir kez yapmanız yeterli.</p>
+    <input class="setup-input" id="api-input" type="url" placeholder="https://script.google.com/macros/s/..." autocomplete="off">
+    <button class="setup-btn" onclick="saveApiUrl()">Kaydet ve Başlat</button>
+  </div>
+  <div class="setup-hint">
+    📌 Bu link yöneticinizin Google Sheets'indeki Apps Script'ten üretilir. Yöneticinizden isteyin.
+  </div>
+</div>
+
+<!-- ERROR -->
+<div id="error-screen" style="display:none">
+  <div class="error-icon">⚠️</div>
+  <div class="error-title">Bağlantı Hatası</div>
+  <div class="error-desc" id="error-desc">Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin.</div>
+  <button class="error-btn" onclick="loadData()">Tekrar Dene</button>
+  <div style="margin-top:12px">
+    <button onclick="clearSetup()" style="background:none;border:none;color:var(--gray);font-size:13px;cursor:pointer;padding:8px">Linki sıfırla</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen">
+  <div class="stats">
+    <div class="stat"><div class="n" id="s-total">0</div><div class="l">Toplam</div></div>
+    <div class="stat"><div class="n" id="s-pend">0</div><div class="l">Bekliyor</div></div>
+    <div class="stat g"><div class="n" id="s-ok">0</div><div class="l">Alındı</div></div>
+    <div class="stat r"><div class="n" id="s-fail">0</div><div class="l">Alınamadı</div></div>
+  </div>
+  <div class="tabs">
+    <div class="tab all active" onclick="filter('tumu',this)">Tümü</div>
+    <div class="tab pend" onclick="filter('bekliyor',this)">⏳ Bekliyor</div>
+    <div class="tab ok" onclick="filter('alindi',this)">✅ Alındı</div>
+    <div class="tab fail" onclick="filter('alinamadi',this)">❌ Alınamadı</div>
+  </div>
+  <div class="sync-bar">
+    <div class="sync-dot" id="sync-dot"></div>
+    <span id="sync-label">Yükleniyor...</span>
+  </div>
+  <div class="list" id="list"></div>
+</div>
+
+<!-- MODAL -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <span class="micon" id="m-icon"></span>
+    <h3 id="m-title"></h3>
+    <p id="m-desc"></p>
+    <div class="mbtns" id="m-btns"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+//  ⬇️  BURAYA APPS SCRIPT LİNKİNİZİ YAPIŞTIRIN (opsiyonel)
+//  Boş bırakırsanız uygulama açıldığında sorar.
+// ============================================================
+const HARDCODED_API = "";
+// ============================================================
+
+const API_KEY = "siparis_api_url";
+let orders = [];
+let activeFilter = 'tumu';
+let pendingAction = null;
+let refreshTimer = null;
+
+// --- INIT ---
+window.addEventListener('load', () => {
+  const url = HARDCODED_API || localStorage.getItem(API_KEY);
+  if (!url) {
+    show('setup-screen');
+  } else {
+    loadData();
+    startAutoRefresh();
+  }
+});
+
+function show(id) {
+  ['loading-screen','setup-screen','error-screen','app-screen'].forEach(s => {
+    document.getElementById(s).style.display = s === id ? 'flex' : 'none';
+  });
+  if (id === 'app-screen') document.getElementById('app-screen').style.display = 'block';
+}
+
+// --- SETUP ---
+function saveApiUrl() {
+  const url = document.getElementById('api-input').value.trim();
+  if (!url.startsWith('https://script.google.com')) {
+    toast('⚠️ Geçerli bir Apps Script linki girin');
+    return;
+  }
+  localStorage.setItem(API_KEY, url);
+  loadData();
+  startAutoRefresh();
+}
+
+function clearSetup() {
+  localStorage.removeItem(API_KEY);
+  show('setup-screen');
+}
+
+function getApiUrl() {
+  return HARDCODED_API || localStorage.getItem(API_KEY);
+}
+
+// --- DATA LOAD ---
+async function loadData() {
+  const url = getApiUrl();
+  if (!url) return;
+
+  if (orders.length === 0) show('loading-screen');
+
+  try {
+    const res = await fetch(`${url}?action=getSiparisler`, { cache: 'no-store' });
+    const data = await res.json();
+
+    if (data.error) throw new Error(data.error);
+
+    orders = (data.siparisler || []).map(o => ({
+      ...o,
+      _cls: statusClass(o.durum),
+      _loading: false
+    }));
+
+    show('app-screen');
+    render();
+    updateStats();
+    updateSyncLabel(data.guncelleme);
+  } catch (err) {
+    if (orders.length === 0) {
+      document.getElementById('error-desc').textContent = err.message || 'Bağlantı hatası';
+      show('error-screen');
+    } else {
+      toast('⚠️ Güncelleme başarısız, eski veri gösteriliyor');
+      updateSyncDot(false);
+    }
+  }
+}
+
+function startAutoRefresh() {
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(loadData, 15000); // 15 saniyede bir güncelle
+}
+
+// --- STATUS ---
+function statusClass(d) {
+  const l = (d || '').toLowerCase();
+  if (l === 'alındı' || l === 'alindi') return 'ok';
+  if (l === 'alınamadı' || l === 'alinamadi') return 'fail';
+  return 'pend';
+}
+
+function statusLabel(cls) {
+  if (cls === 'ok')   return { e: '✅', t: 'Alındı',    c: 'ok' };
+  if (cls === 'fail') return { e: '❌', t: 'Alınamadı', c: 'fail' };
+  return { e: '⏳', t: 'Bekliyor', c: 'pend' };
+}
+
+// --- FILTER & RENDER ---
+function filter(val, el) {
+  activeFilter = val;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+function filteredOrders() {
+  return orders.filter(o => {
+    if (activeFilter === 'tumu') return true;
+    return o._cls === activeFilter;
+  });
+}
+
+function render() {
+  const list = document.getElementById('list');
+  const items = filteredOrders();
+
+  if (!items.length) {
+    list.innerHTML = `<div class="empty"><div class="e">📭</div><p>Bu filtrede sipariş yok</p></div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(o => {
+    const sl = statusLabel(o._cls);
+    const isPend = o._cls === 'pend';
+    const loading = o._loading;
+
+    const actions = isPend
+      ? `<div class="actions">
+           <button class="btn-ok"   onclick="openModal(${o.row},'alindi')"   ${loading?'disabled':''}>✅ Alındı</button>
+           <button class="btn-fail" onclick="openModal(${o.row},'alinamadi')" ${loading?'disabled':''}>❌ Alınamadı</button>
+         </div>`
+      : `<div class="done-lbl ${sl.c}">${sl.e} ${sl.t} olarak işaretlendi</div>`;
+
+    return `
+    <div class="card ${o._cls}" id="card-${o.row}">
+      <div class="cbody">
+        <div class="ctop">
+          <div class="cfirm">${o.firma || '—'}</div>
+          <div class="ccode">#${o.kod}</div>
+        </div>
+        <div class="spill ${sl.c}">${sl.e} ${sl.t}</div>
+        ${loading ? '<div style="font-size:13px;color:var(--gray)">Güncelleniyor...</div>' : actions}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateStats() {
+  const total = orders.length;
+  const pend  = orders.filter(o => o._cls === 'pend').length;
+  const ok    = orders.filter(o => o._cls === 'ok').length;
+  const fail  = orders.filter(o => o._cls === 'fail').length;
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-pend').textContent  = pend;
+  document.getElementById('s-ok').textContent    = ok;
+  document.getElementById('s-fail').textContent  = fail;
+  const badge = document.getElementById('top-badge');
+  badge.style.display = pend > 0 ? 'inline' : 'none';
+  badge.textContent   = `${pend} Bekliyor`;
+}
+
+function updateSyncLabel(iso) {
+  updateSyncDot(true);
+  if (!iso) return;
+  const d = new Date(iso);
+  const str = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById('sync-label').textContent = `Son güncelleme: ${str}`;
+}
+
+function updateSyncDot(ok) {
+  const dot = document.getElementById('sync-dot');
+  dot.className = 'sync-dot' + (ok ? '' : ' old');
+}
+
+// --- MODAL ---
+function openModal(row, type) {
+  const o = orders.find(x => x.row === row);
+  if (!o) return;
+  pendingAction = { row, type };
+  const isOk = type === 'alindi';
+  document.getElementById('m-icon').textContent  = isOk ? '✅' : '❌';
+  document.getElementById('m-title').textContent = isOk ? 'Sipariş Alındı mı?' : 'Sipariş Alınamadı mı?';
+  document.getElementById('m-desc').innerHTML =
+    `<strong>${o.firma}</strong> firmasına ait <strong>#${o.kod}</strong> siparişi <strong>${isOk ? 'alındı' : 'alınamadı'}</strong> olarak işaretlensin mi?`;
+  document.getElementById('m-btns').innerHTML = `
+    <button class="m-cancel" onclick="closeModal()">İptal</button>
+    <button id="m-confirm" class="${isOk ? 'm-ok' : 'm-fail'}" onclick="confirmAction()">
+      ${isOk ? '✅ Evet, Alındı' : '❌ Evet, Alınamadı'}
+    </button>`;
+  document.getElementById('overlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.remove('show');
+  pendingAction = null;
+}
+
+async function confirmAction() {
+  if (!pendingAction) return;
+  const { row, type } = pendingAction;
+  const o = orders.find(x => x.row === row);
+  if (!o) return;
+
+  // Disable button
+  const btn = document.getElementById('m-confirm');
+  if (btn) btn.disabled = true;
+
+  closeModal();
+
+  // Optimistic update
+  const yeniDurum = type === 'alindi' ? 'Alındı' : 'Alınamadı';
+  o._loading = true;
+  render();
+
+  try {
+    const url = getApiUrl();
+    const res = await fetch(`${url}?action=updateDurum&row=${row}&durum=${encodeURIComponent(yeniDurum)}`, { cache: 'no-store' });
+    const data = await res.json();
+
+    if (data.error) throw new Error(data.error);
+
+    o.durum = yeniDurum;
+    o._cls  = statusClass(yeniDurum);
+    o._loading = false;
+    render();
+    updateStats();
+    toast(type === 'alindi' ? `✅ ${o.firma} — Alındı olarak kaydedildi` : `❌ ${o.firma} — Alınamadı olarak kaydedildi`);
+  } catch (err) {
+    o._loading = false;
+    render();
+    toast('❌ Güncelleme başarısız: ' + (err.message || 'Bağlantı hatası'));
+  }
+}
+
+// --- TOAST ---
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
